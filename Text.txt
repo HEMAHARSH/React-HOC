@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+import requests
+from requests.auth import HTTPBasicAuth
+
+# ===== CONFIGURATION =====
+WEBLOGIC_HOST = "http://localhost:7001"   # change to your Admin Server host/port
+USERNAME = "weblogic"                     # same user CyberArk uses
+PASSWORD = "your_password"                # can be left blank if CyberArk injects automatically (see below)
+TIMEOUT = 10
+
+def check_servers():
+    url = f"{WEBLOGIC_HOST}/management/tenant-monitoring/servers"
+    try:
+        response = requests.get(url, auth=HTTPBasicAuth(USERNAME, PASSWORD), timeout=TIMEOUT)
+        if response.status_code == 200:
+            data = response.json()
+            print("✅ Connected successfully.\n")
+            for srv in data.get("items", []):
+                name = srv["name"]
+                state = srv["state"]
+                health = srv["health"]["state"]
+                print(f"🖥️ {name:<25}  State: {state:<10}  Health: {health}")
+        elif response.status_code in (401, 403):
+            print("🔒 Authentication failed — check credentials or CyberArk session context.")
+        else:
+            print(f"⚠️ Unexpected response: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Error connecting to WebLogic: {e}")
+
+if __name__ == "__main__":
+    check_servers()
