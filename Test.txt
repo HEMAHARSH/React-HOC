@@ -1,0 +1,58 @@
+from java.util import *
+import sys
+
+connect('{{ user_wlc }}', '{{ password_wlc }}',
+        '{{ protocol_wlc }}://{{ server_wlc }}:{{ port_wlc }}')
+
+domainRuntime()
+
+servers = domainRuntimeService.getServerRuntimes()
+
+output_data = "{\n"
+
+for srv in servers:
+
+    name = srv.getName()
+
+    # ---- HEALTH COLUMN (GUI Health) ----
+    health = srv.getHealthState()
+    code = health.getState()
+
+    if code == 0:
+        state = "OK"
+    elif code == 1:
+        state = "Warning"
+    elif code == 2:
+        state = "Critical"
+    elif code == 3:
+        state = "Failed"
+    elif code == 4:
+        state = "Overloaded"
+    else:
+        state = "Unknown"
+
+    # ---- STATUS COLUMN (GUI Status) ----
+    status = srv.getState()
+
+    print("the health showed here:", state)
+    print("the status showed here:", status)
+
+    output_data += '  "' + name + '": {\n'
+    output_data += '    "health_state": "' + state + '",\n'
+    output_data += '    "status": "' + status + '"\n'
+    output_data += '  },\n'
+
+# Remove trailing comma
+output_data = output_data.rstrip(',\n') + "\n}"
+
+print('Current state of applications:\n', output_data)
+
+output_file_path = r'D:\apps\{{ app_path }}\applications\AdminServer\server_healthcheck_output.json'
+
+output_file = open(output_file_path, 'w')
+output_file.write(output_data)
+output_file.close()
+
+print('Server health JSON generated at:', output_file_path)
+
+exit()
