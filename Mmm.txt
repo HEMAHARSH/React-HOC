@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+
+import sys
+import pyodbc
+
+OK = 0
+CRITICAL = 2
+UNKNOWN = 3
+
+CONN_STR = (
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=your_server_here;"
+    "DATABASE=master;"
+    "UID=your_user;"
+    "PWD=your_password;"
+    "Encrypt=yes;"
+    "TrustServerCertificate=yes;"
+)
+
+MINUTES = 30  # threshold for long running query
+
+SQL_QUERY = f"""
+SELECT COUNT(*)
+FROM sys.dm_exec_requests
+WHERE total_elapsed_time/60000 >= {MINUTES};
+"""
+
+
+def main() -> None:
+    conn = None
+    cursor = None
+
+    try:
+        conn = pyodbc.connect(CONN_STR, timeout=5)
+        cursor = conn.cursor()
+
+        cursor.execute(SQL_QUERY)
+        row = cursor.fetchone()
+
+        if row is None:
+            print("UNKNOWN - No data returned from query")
+            sys.exit(UNKNOWN)
+
+        long_running_count = row[0]
+
+        if long_running_count > 0:
+            print(f"CRITICAL - Long running queries: {long_running_count} | long_running={long_running_count}")
+            sys.exit(CRITICAL)
+
+        print("OK - No long running queries")
+        sys.exit(OK)
+
+    except Exception as e:
+        print(f"UNKNOWN - Error checking long running queries: {e}")
+        sys.exit(UNKNOWN)
+
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+#!/usr/bin/env python3
+
+import sys
+import pyodbc
+
+OK = 0
+CRITICAL = 2
+UNKNOWN = 3
+
+CONN_STR = (
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=your_server_here;"
+    "DATABASE=master;"
+    "UID=your_user;"
+    "PWD=your_password;"
+    "Encrypt=yes;"
+    "TrustServerCertificate=yes;"
+)
+
+SQL_QUERY = """
+SELECT COUNT(*)
+FROM sys.dm_exec_sessions
+WHERE is_user_process = 1
+AND status <> 'sleeping';
+"""
+
+
+def main() -> None:
+    conn = None
+    cursor = None
+
+    try:
+        threshold = 100  # <-- Set your CRITICAL threshold here
+
+        conn = pyodbc.connect(CONN_STR, timeout=5)
+        cursor = conn.cursor()
+
+        cursor.execute(SQL_QUERY)
+        row = cursor.fetchone()
+
+        if row is None:
+            print("UNKNOWN - No data returned from query")
+            sys.exit(UNKNOWN)
+
+        active_connections = row[0]
+
+        if active_connections > threshold:
+            print(f"CRITICAL - Active connections: {active_connections} | active_connections={active_connections}")
+            sys.exit(CRITICAL)
+
+        print(f"OK - Active connections: {active_connections} | active_connections={active_connections}")
+        sys.exit(OK)
+
+    except Exception as e:
+        print(f"UNKNOWN - Error checking active connections: {e}")
+        sys.exit(UNKNOWN)
+
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":
+    main()
